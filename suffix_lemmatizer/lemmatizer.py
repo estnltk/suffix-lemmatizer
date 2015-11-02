@@ -7,14 +7,14 @@ from . import util
 
 class SuffixLemmatizer(object):
     """
-    Hybrid lemmatizer which handles in-dictionary and out-of-dictionary words.
+    Lemmatizer which handles in-dictionary and out-of-dictionary words.
     """
-    def __init__(self, trn_fnm, dict_file):
-        self.dic = util.load_data_lwc(dict_file)
-        self.chnl_model = util.train_channel_model(trn_fnm, suf_sub_func=self.get_suffix_sub)
+    def __init__(self):
+        self.dic = util.load_dictionary()
+        self.chnl_model = util.train_channel_model(suf_sub_func=self.get_suffix_sub)
         self.wsuf2lsuf_dict = util.inverse_channel_model(self.chnl_model)
-        self.lng_model = util.train_language_model(trn_fnm)
-    
+        self.lng_model = util.train_language_model()
+        
     
     def __call__(self, word):
         """

@@ -1,13 +1,14 @@
 # -*- coding: utf8 -*-
-""" Utility functions """  
-
+""" 
+utility functions
+"""
 from collections import defaultdict
-import codecs
-import pandas as pd
-from functools import partial
 import os
-import re
+import bz2
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 exceptions = dict([
          (u'selle', u'see'),
@@ -89,51 +90,28 @@ def inverse_channel_model(chnl_model):
     return D
 
 
-def train_channel_model(train_fl, suf_sub_func, min_count=1):
-    """ Learn P(lemma|word) base suffinx substitution frequencies. """
+def train_channel_model(suf_sub_func, min_count=1):
+    """
+    Learn P(lemma|word) base suffix substitution frequencies
+    """
+    fnm = os.path.join(get_data_dir(), 'corpus.bz2')
+    logger.debug('Training channel model ' + fnm)
     M = defaultdict(lambda: defaultdict(float))
-    with codecs.open(train_fl, encoding='utf8') as inf:
+    with bz2.BZ2File(fnm) as inf:
         for ln in inf:
-            ln = ln.lower().rstrip()
-            lem, word, n = ln.split('\t')
+            lem, word, n = ln.decode('utf8').rstrip().split('\t')
             if int(n) < min_count:
                 continue
             l_suf, w_suf = suf_sub_func(lem, word)
             M[l_suf][w_suf] += int(n)
-    for l_suf, w_suf_dict in M.iteritems(): # optional: try to prune lemmas/rules? with low confidence
+    for l_suf, w_suf_dict in M.iteritems():
         l_suf_count = sum(w_suf_dict.values())
         for w_suf in w_suf_dict.iterkeys(): 
             M[l_suf][w_suf] /= float(l_suf_count)
     return M
 
-def dict_lookup_exact(dic, word, **kwargs):
-    return '', word, dic.get(word)
 
-def dict_lookup_suffix(dic, word, **kwargs):
-    """ Returns (prefix, suffix, candidate-lemmas) using longest suffix match """
-    min_suf_len = kwargs.get('min_suf_len', 5)
-    for i in xrange(max(len(word) - min_suf_len, 1)):
-        if word[i:] in dic:
-            return word[:i], word[i:], dic[word[i:]]
-    else:
-        return '', word, []
-
-
-def dict_lookup_pref_suf(dic, word, **kwargs):
-    min_suf_len = kwargs.get('min_suf_len', 5)
-    for i in xrange(max(len(word) - min_suf_len, 1)):
-        pref, suff = word[:i], word[i:]
-        if len(pref) > 2:
-            if pref in dic and suff in dic:
-                return word[:i], word[i:], dic[word[i:]]
-        else:
-            if suff in dic:
-                return word[:i], word[i:], dic[word[i:]]
-    else:
-        return '', word, []
-
-
-def train_language_model(train_fl, ngram=1, smoothing=None):
+def train_language_model(ngram=1, smoothing=None):
     """
     Train P(L) part of the model: P(W|L)P(L)
     """
@@ -153,11 +131,13 @@ def train_language_model(train_fl, ngram=1, smoothing=None):
         res = defaultdict(lambda: 1.0 / (total_lem_count + unique_lem_count))
         res.update(lemma2count_dict)
         return res
-
+    
     M = defaultdict(int)
-    with codecs.open(train_fl, encoding='utf8') as inf:
+    fnm = os.path.join(get_data_dir(), 'corpus.bz2')
+    logger.debug('Training language model ' + fnm)
+    with bz2.BZ2File(fnm) as inf:
         for ln in inf:
-            lem, _, n = ln.rstrip().split('\t')
+            lem, _, n = ln.decode('utf8').rstrip().split('\t')
             M[lem] += int(n)
     
     if smoothing is None:
@@ -168,15 +148,21 @@ def train_language_model(train_fl, ngram=1, smoothing=None):
         raise RuntimeError("Invalid smoothing method " + smoothing)
 
 
-def load_data_lwc(fnm, toLower=True, topN=100000000):
-    D = defaultdict(set)
-    with codecs.open(fnm, encoding='utf8') as inf:
-        for i, ln in enumerate(inf):
-            if i == topN:
-                break
-            if toLower:
-                ln = ln.lower()
-            lem, infl, n = ln.strip().split("\t")
-            D[infl].add(lem)
-    D = dict((infl, list(lemma_set)) for infl, lemma_set in D.iteritems())
+def get_data_dir():
+    return os.path.join(
+               os.path.split(os.path.abspath(__file__))[0],
+               'data')
+
+
+def load_dictionary():
+    """
+    Loads the dictionary from the bz2-compressed file
+    """
+    fnm = os.path.join(get_data_dir(), 'dict.bz2')
+    logger.debug('Loading dictionary ' + fnm)
+    D = defaultdict(list)
+    with bz2.BZ2File(fnm) as inf:
+        for ln in inf:
+            infl, lem = ln.decode('utf8').rstrip().split("\t")
+            D[infl].append(lem)
     return D
