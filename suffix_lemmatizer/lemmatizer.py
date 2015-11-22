@@ -87,7 +87,7 @@ class SuffixLemmatizer(object):
             w_pref, w_suf = word[:i], word[i:]
             for l_suf in self.wsuf2lsuf_dict[w_suf]:
                 lemma = w_pref + l_suf
-                if lemma in lng_model:
+                if lemma in self.lng_model:
                     p = (self.lng_model[lemma] ** 0.8) * self.chnl_model[l_suf][w_suf]
                     candidates.append((p, lemma))
         candidates.sort(reverse=1)
