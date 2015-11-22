@@ -163,6 +163,6 @@ def load_dictionary():
     D = defaultdict(list)
     with bz2.BZ2File(fnm) as inf:
         for ln in inf:
-            infl, lem = ln.decode('utf8').rstrip().split("\t")
+            infl, lem = ln.decode('utf8').rstrip().split("\t", 1)
             D[infl].append(lem)
     return D

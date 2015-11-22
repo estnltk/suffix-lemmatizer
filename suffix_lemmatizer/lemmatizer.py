@@ -1,15 +1,19 @@
 # -*- coding: utf8 -*-
 import re
 import random
+import logging
 
 from . import util
 
+
+log = logging.getLogger(__name__)
 
 class SuffixLemmatizer(object):
     """
     Lemmatizer which handles in-dictionary and out-of-dictionary words.
     """
     def __init__(self):
+        log.debug('Loading suffix lemmatizer ...')
         self.dic = util.load_dictionary()
         self.chnl_model = util.train_channel_model(suf_sub_func=self.get_suffix_sub)
         self.wsuf2lsuf_dict = util.inverse_channel_model(self.chnl_model)
